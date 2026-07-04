@@ -81,16 +81,16 @@ html[data-theme="dark"],
   flex-direction: column;
   gap: 10px;
   min-width: 0;
+}
 
-  h3 {
-    color: var(--campaign-board-text-muted);
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 0.66rem !important;
-    font-weight: 500 !important;
-    line-height: 1.1 !important;
-    margin: 0 0 2px 0 !important;
-    text-transform: uppercase;
-  }
+.campaign-board .campaign-group .campaign-group-title {
+  color: var(--campaign-board-text-muted);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.66rem !important;
+  font-weight: 500 !important;
+  line-height: 1.1 !important;
+  margin: 0 0 2px 0 !important;
+  text-transform: uppercase;
 }
 
 .campaign-card {

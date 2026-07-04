@@ -15,7 +15,7 @@
 <div class="campaign-board">
   {% for group in campaign_board.status_groups %}
   <section class="campaign-group">
-    <h3>{{ group.title }}</h3>
+    <h3 class="campaign-group-title">{{ group.title }}</h3>
     {% assign group_campaigns = campaigns | where: "status", group.id %}
     {% for campaign in group_campaigns %}
     {% assign campaign_visibility = campaign.visibility %}
