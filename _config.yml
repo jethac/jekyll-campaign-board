@@ -1,0 +1,15 @@
+title: Jekyll Campaign Board
+description: Public, YAML-powered campaign boards for Jekyll and GitHub Pages.
+url: "http://jethachan.net"
+baseurl: "/jekyll-campaign-board"
+
+markdown: kramdown
+
+sass:
+  sass_dir: _sass
+  style: compressed
+
+exclude:
+  - README.md
+  - Gemfile
+  - Gemfile.lock

@@ -1,0 +1,76 @@
+{% assign item_registry = include.board.items %}
+{% assign campaign_items = include.campaign.items %}
+{% assign campaign_surface = include.surface | default: "blog" %}
+{% assign board_visibility = include.board.publication.visibility %}
+{% assign board_surfaces = include.board.publication.surfaces %}
+
+{% if campaign_items and board_visibility == "public" and board_surfaces contains campaign_surface %}
+<div class="campaign-issue-list">
+{% for item_id in campaign_items %}
+  {% assign item_matches = item_registry | where: "id", item_id %}
+  {% assign item = item_matches | first %}
+  {% if item %}
+  {% assign item_visibility = item.visibility %}
+  {% assign item_surfaces = item.surfaces %}
+  {% if item_visibility == "public" and item_surfaces contains campaign_surface %}
+  <div class="campaign-issue-item">
+    <div class="campaign-issue-main">
+      <div class="campaign-issue-heading">
+      {% if item.url %}
+        <a class="campaign-issue-key" href="{{ item.url }}">{{ item.label }}</a>
+      {% else %}
+        <span class="campaign-issue-key">{{ item.label }}</span>
+      {% endif %}
+      {% if item.type %}
+        <span class="campaign-issue-type">{{ item.type }}</span>
+      {% endif %}
+      </div>
+      {% if item.summary %}
+      <div class="campaign-issue-summary">{{ item.summary | markdownify | strip_html | strip }}</div>
+      {% endif %}
+      {% if item.status_note %}
+      <div class="campaign-issue-current"><span>Current</span>{{ item.status_note | markdownify | strip_html | strip }}</div>
+      {% endif %}
+      {% if item.depends_on or item.redacted_dependencies %}
+      <div class="campaign-issue-deps">
+        Depends on:
+        {% assign dependency_separator = "" %}
+        {% if item.depends_on %}
+        {% for dep_id in item.depends_on %}
+          {% assign dep_matches = item_registry | where: "id", dep_id %}
+          {% assign dep = dep_matches | first %}
+          {% if dep %}
+            {% assign dep_visibility = dep.visibility %}
+            {% assign dep_surfaces = dep.surfaces %}
+            {% if dep_visibility == "public" and dep_surfaces contains campaign_surface %}
+              {{ dependency_separator }}{% if dep.url %}<a href="{{ dep.url }}">{{ dep.label }}</a>{% else %}<span>{{ dep.label }}</span>{% endif %}
+              {% assign dependency_separator = ", " %}
+            {% else %}
+              {{ dependency_separator }}<span>[REDACTED]</span>
+              {% assign dependency_separator = ", " %}
+            {% endif %}
+          {% else %}
+            {{ dependency_separator }}<span>[REDACTED]</span>
+            {% assign dependency_separator = ", " %}
+          {% endif %}
+        {% endfor %}
+        {% endif %}
+        {% if item.redacted_dependencies %}
+        {% for redacted_dependency in item.redacted_dependencies %}
+          {{ dependency_separator }}<span>[REDACTED]</span>
+          {% assign dependency_separator = ", " %}
+        {% endfor %}
+        {% endif %}
+      </div>
+      {% endif %}
+    </div>
+    {% if item.status %}
+    {% assign issue_status_class = item.status | downcase | replace: ",", "" | replace: "/", "-" | replace: " ", "-" %}
+    <span class="campaign-issue-status status-{{ issue_status_class }}">{{ item.status }}</span>
+    {% endif %}
+  </div>
+  {% endif %}
+  {% endif %}
+{% endfor %}
+</div>
+{% endif %}

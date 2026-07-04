@@ -1,0 +1,34 @@
+{% assign campaign_board = include.board %}
+{% if include.board_key %}
+  {% assign campaign_board = site.data.campaign_boards[include.board_key] %}
+{% endif %}
+{% assign campaign_surface = include.surface | default: "blog" %}
+{% assign board_visibility = campaign_board.publication.visibility %}
+{% assign board_surfaces = campaign_board.publication.surfaces %}
+{% if board_visibility == "public" and board_surfaces contains campaign_surface %}
+{% assign campaigns = campaign_board.campaigns %}
+
+{% for campaign in campaigns %}
+{% assign campaign_visibility = campaign.visibility %}
+{% assign campaign_surfaces = campaign.surfaces %}
+{% if campaign_visibility == "public" and campaign_surfaces contains campaign_surface %}
+<h3 id="{{ campaign.id }}">{{ campaign.title }}</h3>
+
+<p class="campaign-section-meta">{{ campaign.display_date }} · {{ campaign.status_label }}{% if campaign.writeup_url %} · <a href="{{ campaign.writeup_url }}">X writeup</a>{% endif %}</p>
+
+*{{ campaign.goal }}*
+
+{{ campaign.body | markdownify }}
+
+{% if campaign.status_summary or campaign.items %}
+<h4>Status</h4>
+
+{% if campaign.status_summary %}
+{{ campaign.status_summary | markdownify }}
+{% endif %}
+
+{% include campaign-issue-list.html board=campaign_board campaign=campaign surface=campaign_surface %}
+{% endif %}
+{% endif %}
+{% endfor %}
+{% endif %}

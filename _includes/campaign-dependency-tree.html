@@ -1,0 +1,109 @@
+{% assign campaign_board = include.board %}
+{% if include.board_key %}
+  {% assign campaign_board = site.data.campaign_boards[include.board_key] %}
+{% endif %}
+{% assign campaign_surface = include.surface | default: "dependency_tree" %}
+{% assign tree_id = include.id | default: "campaign-dependency-tree" %}
+{% assign data_id = include.data_id | default: tree_id | append: "-data" %}
+{% assign board_visibility = campaign_board.publication.visibility %}
+{% assign board_surfaces = campaign_board.publication.surfaces %}
+{% if board_visibility == "public" and board_surfaces contains campaign_surface %}
+<section class="campaign-dependency-tree" id="{{ tree_id | escape }}" aria-label="Campaign dependency tree">
+  <div class="campaign-dependency-tree-empty">Loading dependency tree...</div>
+</section>
+{% include campaign-dependency-data.html board=campaign_board surface=campaign_surface id=data_id %}
+<script>
+(function () {
+  var root = document.getElementById({{ tree_id | jsonify }});
+  var dataElement = document.getElementById({{ data_id | jsonify }});
+  if (!root || !dataElement) return;
+
+  var graph;
+  try {
+    graph = JSON.parse(dataElement.textContent);
+  } catch (error) {
+    return;
+  }
+
+  var nodes = {};
+  var outgoing = {};
+  graph.nodes.forEach(function (node) {
+    nodes[node.id] = node;
+    outgoing[node.id] = [];
+  });
+
+  graph.edges.forEach(function (edge) {
+    if (!outgoing[edge.from]) outgoing[edge.from] = [];
+    outgoing[edge.from].push(edge);
+  });
+
+  function slug(value) {
+    return String(value || "")
+      .toLowerCase()
+      .replace(/[,/]/g, "")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "");
+  }
+
+  function makeNode(node, trail) {
+    var branch = document.createElement("div");
+    branch.className = "campaign-dependency-branch";
+
+    var card = document.createElement(node.url && node.kind !== "redacted" ? "a" : "div");
+    card.className = "campaign-dependency-node campaign-dependency-node-" + node.kind;
+    if (node.url && node.kind !== "redacted") card.href = node.url;
+
+    var label = document.createElement("span");
+    label.className = "campaign-dependency-label";
+    label.textContent = node.label || node.title || node.id;
+    card.appendChild(label);
+
+    if (node.summary) {
+      var summary = document.createElement("span");
+      summary.className = "campaign-dependency-summary";
+      summary.textContent = node.summary;
+      card.appendChild(summary);
+    }
+
+    if (node.status || node.status_label) {
+      var status = document.createElement("span");
+      status.className = "campaign-issue-status status-" + slug(node.status || node.status_label);
+      status.textContent = node.status_label || node.status;
+      card.appendChild(status);
+    }
+
+    branch.appendChild(card);
+
+    if (trail.indexOf(node.id) !== -1) return branch;
+    var nextTrail = trail.concat(node.id);
+    var children = outgoing[node.id] || [];
+    if (!children.length) return branch;
+
+    var childList = document.createElement("div");
+    childList.className = "campaign-dependency-children";
+    children.forEach(function (edge) {
+      var child = nodes[edge.to];
+      if (!child) return;
+      var edgeLabel = document.createElement("div");
+      edgeLabel.className = "campaign-dependency-edge";
+      edgeLabel.textContent = edge.kind === "depends_on" ? "depends on" : "includes";
+      childList.appendChild(edgeLabel);
+      childList.appendChild(makeNode(child, nextTrail));
+    });
+    branch.appendChild(childList);
+    return branch;
+  }
+
+  root.textContent = "";
+  var campaigns = graph.nodes
+    .filter(function (node) { return node.kind === "campaign"; })
+    .sort(function (left, right) {
+      return String(left.date || "").localeCompare(String(right.date || "")) || String(left.id).localeCompare(String(right.id));
+    });
+
+  campaigns.forEach(function (campaign) {
+    root.appendChild(makeNode(campaign, []));
+  });
+}());
+</script>
+{% endif %}

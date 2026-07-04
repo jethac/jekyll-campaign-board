@@ -1,0 +1,34 @@
+{% assign campaign_board = include.board %}
+{% if include.board_key %}
+  {% assign campaign_board = site.data.campaign_boards[include.board_key] %}
+{% endif %}
+{% assign campaign_surface = include.surface | default: "blog" %}
+{% assign board_visibility = campaign_board.publication.visibility %}
+{% assign board_surfaces = campaign_board.publication.surfaces %}
+{% if board_visibility == "public" and board_surfaces contains campaign_surface %}
+{% assign campaigns = campaign_board.campaigns %}
+
+{% if campaign_board.last_checked_display %}
+<p class="campaign-section-meta">PR status last checked: {{ campaign_board.last_checked_display }}</p>
+{% endif %}
+
+<div class="campaign-board">
+  {% for group in campaign_board.status_groups %}
+  <section class="campaign-group">
+    <h3>{{ group.title }}</h3>
+    {% assign group_campaigns = campaigns | where: "status", group.id %}
+    {% for campaign in group_campaigns %}
+    {% assign campaign_visibility = campaign.visibility %}
+    {% assign campaign_surfaces = campaign.surfaces %}
+    {% if campaign_visibility == "public" and campaign_surfaces contains campaign_surface %}
+    <a class="campaign-card" href="#{{ campaign.id }}">
+      <span class="campaign-card-date">{{ campaign.display_date }}</span>
+      <strong>{{ campaign.card_title | default: campaign.title }}</strong>
+      <p>{{ campaign.card_summary }}</p>
+    </a>
+    {% endif %}
+    {% endfor %}
+  </section>
+  {% endfor %}
+</div>
+{% endif %}

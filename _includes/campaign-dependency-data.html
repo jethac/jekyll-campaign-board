@@ -1,0 +1,222 @@
+{% comment %}
+Emits a public-only dependency graph for JavaScript views. Hidden, private,
+internal, or non-surface records are never serialized; edges to them become
+redacted placeholder nodes with IDs derived only from public records.
+{% endcomment %}
+{% assign campaign_board = include.board %}
+{% if include.board_key %}
+  {% assign campaign_board = site.data.campaign_boards[include.board_key] %}
+{% endif %}
+{% assign campaign_surface = include.surface | default: "dependency_tree" %}
+{% assign script_id = include.id | default: "campaign-dependency-data" %}
+{% assign board_visibility = campaign_board.publication.visibility %}
+{% assign board_surfaces = campaign_board.publication.surfaces %}
+{% if board_visibility == "public" and board_surfaces contains campaign_surface %}
+<script type="application/json" id="{{ script_id | escape }}">
+{
+  "version": 1,
+  "surface": {{ campaign_surface | jsonify }},
+  "board": {
+    "last_checked": {{ campaign_board.last_checked | jsonify }},
+    "last_checked_display": {{ campaign_board.last_checked_display | jsonify }}
+  },
+  "nodes": [
+{% assign first_node = true %}
+{% for campaign in campaign_board.campaigns %}
+  {% assign campaign_visibility = campaign.visibility %}
+  {% assign campaign_surfaces = campaign.surfaces %}
+  {% if campaign_visibility == "public" and campaign_surfaces contains campaign_surface %}
+    {% capture campaign_node_id %}campaign:{{ campaign.id }}{% endcapture %}
+    {% capture campaign_url %}#{{ campaign.id }}{% endcapture %}
+    {% unless first_node %},{% endunless %}
+    {
+      "id": {{ campaign_node_id | jsonify }},
+      "kind": "campaign",
+      "label": {{ campaign.card_title | default: campaign.title | jsonify }},
+      "title": {{ campaign.title | jsonify }},
+      "date": {{ campaign.date | jsonify }},
+      "status": {{ campaign.status | jsonify }},
+      "status_label": {{ campaign.status_label | jsonify }},
+      "url": {{ campaign_url | jsonify }},
+      "redaction": {{ campaign.redaction | default: "none" | jsonify }},
+      "stable_ids": [{% assign first_stable_id = true %}{% for stable_entry in campaign.stable_ids %}{% assign stable_visibility = stable_entry.visibility %}{% assign stable_surfaces = stable_entry.surfaces %}{% if stable_entry.id and stable_visibility == "public" and stable_surfaces contains campaign_surface %}{% unless first_stable_id %}, {% endunless %}{{ stable_entry.id | jsonify }}{% assign first_stable_id = false %}{% endif %}{% endfor %}]
+    }
+    {% assign first_node = false %}
+  {% endif %}
+{% endfor %}
+{% for item in campaign_board.items %}
+  {% assign item_visibility = item.visibility %}
+  {% assign item_surfaces = item.surfaces %}
+  {% if item_visibility == "public" and item_surfaces contains campaign_surface %}
+    {% capture item_node_id %}campaign-item:{{ item.id }}{% endcapture %}
+    {% unless first_node %},{% endunless %}
+    {
+      "id": {{ item_node_id | jsonify }},
+      "kind": "item",
+      "item_type": {{ item.type | jsonify }},
+      "label": {{ item.label | jsonify }},
+      "url": {{ item.url | jsonify }},
+      "status": {{ item.status | jsonify }},
+      "summary": {{ item.summary | jsonify }},
+      "redaction": {{ item.redaction | default: "none" | jsonify }},
+      "stable_ids": [{% assign first_stable_id = true %}{% for stable_entry in item.stable_ids %}{% assign stable_visibility = stable_entry.visibility %}{% assign stable_surfaces = stable_entry.surfaces %}{% if stable_entry.id and stable_visibility == "public" and stable_surfaces contains campaign_surface %}{% unless first_stable_id %}, {% endunless %}{{ stable_entry.id | jsonify }}{% assign first_stable_id = false %}{% endif %}{% endfor %}]
+    }
+    {% assign first_node = false %}
+  {% endif %}
+{% endfor %}
+{% for campaign in campaign_board.campaigns %}
+  {% assign campaign_visibility = campaign.visibility %}
+  {% assign campaign_surfaces = campaign.surfaces %}
+  {% if campaign_visibility == "public" and campaign_surfaces contains campaign_surface and campaign.items %}
+    {% for item_id in campaign.items %}
+      {% assign item_matches = campaign_board.items | where: "id", item_id %}
+      {% assign item = item_matches | first %}
+      {% assign item_is_public = false %}
+      {% if item %}
+        {% assign item_visibility = item.visibility %}
+        {% assign item_surfaces = item.surfaces %}
+        {% if item_visibility == "public" and item_surfaces contains campaign_surface %}
+          {% assign item_is_public = true %}
+        {% endif %}
+      {% endif %}
+      {% unless item_is_public %}
+        {% capture redacted_node_id %}redacted:campaign:{{ campaign.id }}:item:{{ forloop.index }}{% endcapture %}
+        {% unless first_node %},{% endunless %}
+    {
+      "id": {{ redacted_node_id | jsonify }},
+      "kind": "redacted",
+      "label": "[REDACTED]",
+      "redaction": "dependency",
+      "stable_ids": [{{ redacted_node_id | jsonify }}]
+    }
+        {% assign first_node = false %}
+      {% endunless %}
+    {% endfor %}
+  {% endif %}
+{% endfor %}
+{% for item in campaign_board.items %}
+  {% assign item_visibility = item.visibility %}
+  {% assign item_surfaces = item.surfaces %}
+  {% if item_visibility == "public" and item_surfaces contains campaign_surface and item.depends_on %}
+    {% for dep_id in item.depends_on %}
+      {% assign dep_matches = campaign_board.items | where: "id", dep_id %}
+      {% assign dep = dep_matches | first %}
+      {% assign dep_is_public = false %}
+      {% if dep %}
+        {% assign dep_visibility = dep.visibility %}
+        {% assign dep_surfaces = dep.surfaces %}
+        {% if dep_visibility == "public" and dep_surfaces contains campaign_surface %}
+          {% assign dep_is_public = true %}
+        {% endif %}
+      {% endif %}
+      {% unless dep_is_public %}
+        {% capture redacted_node_id %}redacted:item:{{ item.id }}:dep:{{ forloop.index }}{% endcapture %}
+        {% unless first_node %},{% endunless %}
+    {
+      "id": {{ redacted_node_id | jsonify }},
+      "kind": "redacted",
+      "label": "[REDACTED]",
+      "redaction": "dependency",
+      "stable_ids": [{{ redacted_node_id | jsonify }}]
+    }
+        {% assign first_node = false %}
+      {% endunless %}
+    {% endfor %}
+  {% endif %}
+  {% if item_visibility == "public" and item_surfaces contains campaign_surface and item.redacted_dependencies %}
+    {% for redacted_dependency in item.redacted_dependencies %}
+      {% capture redacted_node_id %}redacted:item:{{ item.id }}:explicit:{{ forloop.index }}{% endcapture %}
+      {% unless first_node %},{% endunless %}
+    {
+      "id": {{ redacted_node_id | jsonify }},
+      "kind": "redacted",
+      "label": "[REDACTED]",
+      "redaction": "dependency",
+      "stable_ids": [{{ redacted_node_id | jsonify }}]
+    }
+      {% assign first_node = false %}
+    {% endfor %}
+  {% endif %}
+{% endfor %}
+  ],
+  "edges": [
+{% assign first_edge = true %}
+{% for campaign in campaign_board.campaigns %}
+  {% assign campaign_visibility = campaign.visibility %}
+  {% assign campaign_surfaces = campaign.surfaces %}
+  {% if campaign_visibility == "public" and campaign_surfaces contains campaign_surface and campaign.items %}
+    {% capture campaign_node_id %}campaign:{{ campaign.id }}{% endcapture %}
+    {% for item_id in campaign.items %}
+      {% assign item_matches = campaign_board.items | where: "id", item_id %}
+      {% assign item = item_matches | first %}
+      {% assign item_is_public = false %}
+      {% if item %}
+        {% assign item_visibility = item.visibility %}
+        {% assign item_surfaces = item.surfaces %}
+        {% if item_visibility == "public" and item_surfaces contains campaign_surface %}
+          {% assign item_is_public = true %}
+        {% endif %}
+      {% endif %}
+      {% if item_is_public %}
+        {% capture target_node_id %}campaign-item:{{ item.id }}{% endcapture %}
+      {% else %}
+        {% capture target_node_id %}redacted:campaign:{{ campaign.id }}:item:{{ forloop.index }}{% endcapture %}
+      {% endif %}
+      {% unless first_edge %},{% endunless %}
+    {
+      "from": {{ campaign_node_id | jsonify }},
+      "to": {{ target_node_id | jsonify }},
+      "kind": "includes"
+    }
+      {% assign first_edge = false %}
+    {% endfor %}
+  {% endif %}
+{% endfor %}
+{% for item in campaign_board.items %}
+  {% assign item_visibility = item.visibility %}
+  {% assign item_surfaces = item.surfaces %}
+  {% if item_visibility == "public" and item_surfaces contains campaign_surface and item.depends_on %}
+    {% capture item_node_id %}campaign-item:{{ item.id }}{% endcapture %}
+    {% for dep_id in item.depends_on %}
+      {% assign dep_matches = campaign_board.items | where: "id", dep_id %}
+      {% assign dep = dep_matches | first %}
+      {% assign dep_is_public = false %}
+      {% if dep %}
+        {% assign dep_visibility = dep.visibility %}
+        {% assign dep_surfaces = dep.surfaces %}
+        {% if dep_visibility == "public" and dep_surfaces contains campaign_surface %}
+          {% assign dep_is_public = true %}
+        {% endif %}
+      {% endif %}
+      {% if dep_is_public %}
+        {% capture target_node_id %}campaign-item:{{ dep.id }}{% endcapture %}
+      {% else %}
+        {% capture target_node_id %}redacted:item:{{ item.id }}:dep:{{ forloop.index }}{% endcapture %}
+      {% endif %}
+      {% unless first_edge %},{% endunless %}
+    {
+      "from": {{ item_node_id | jsonify }},
+      "to": {{ target_node_id | jsonify }},
+      "kind": "depends_on"
+    }
+      {% assign first_edge = false %}
+    {% endfor %}
+  {% endif %}
+  {% if item_visibility == "public" and item_surfaces contains campaign_surface and item.redacted_dependencies %}
+    {% capture item_node_id %}campaign-item:{{ item.id }}{% endcapture %}
+    {% for redacted_dependency in item.redacted_dependencies %}
+      {% capture target_node_id %}redacted:item:{{ item.id }}:explicit:{{ forloop.index }}{% endcapture %}
+      {% unless first_edge %},{% endunless %}
+    {
+      "from": {{ item_node_id | jsonify }},
+      "to": {{ target_node_id | jsonify }},
+      "kind": "depends_on"
+    }
+      {% assign first_edge = false %}
+    {% endfor %}
+  {% endif %}
+{% endfor %}
+  ]
+}
+</script>
+{% endif %}
