@@ -267,7 +267,9 @@ html[data-theme="dark"],
   text-transform: uppercase;
   white-space: nowrap;
 
-  &.status-merged {
+  &.status-merged,
+  &.status-closed,
+  &.status-closed-credited {
     color: var(--campaign-board-success);
     background: color-mix(in srgb, var(--campaign-board-success) 12%, var(--campaign-board-bg-card));
     border-color: color-mix(in srgb, var(--campaign-board-success) 36%, var(--campaign-board-border));
@@ -306,7 +308,6 @@ html[data-theme="dark"],
     background: var(--campaign-board-bg-card-hover);
   }
 
-  &.status-closed,
   &.status-closed-superseded {
     color: var(--campaign-board-text-muted);
     text-decoration: line-through;
